@@ -4,6 +4,10 @@ spring:
     port: 6379
     password:
     database: 0
+
+chatroom:
+  create-testing-user: true
+
 #spring.redis.pool.max-active=8
 #spring.redis.pool.max-wait=-1
 #spring.redis.pool.max-idle=8

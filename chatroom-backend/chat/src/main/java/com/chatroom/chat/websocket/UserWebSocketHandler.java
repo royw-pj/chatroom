@@ -2,6 +2,7 @@ package com.chatroom.chat.websocket;
 
 import com.chatroom.chat.model.ChatMessage;
 import com.chatroom.chat.model.Envelop;
+import com.chatroom.chat.model.User;
 import com.chatroom.chat.service.ChatroomService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,8 +12,10 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
-@ServerEndpoint("/chatroom-ws")
+@ServerEndpoint(value = "/chatroom-ws", encoders =  {WebSocketMessageEncoder.class}, decoders = {WebSocketMessageDecoder.class})
 @Controller
 public class UserWebSocketHandler extends TextWebSocketHandler {
 
@@ -34,18 +37,34 @@ public class UserWebSocketHandler extends TextWebSocketHandler {
     @OnOpen
     public void onOpen(Session session) {
         this.session = session;
+        session.setMaxIdleTimeout(TimeUnit.MINUTES.toMillis(5));
     }
 
     @OnClose
     public void onClose() {
-        System.out.println("close");
+        try {
+            chatroomService.websocketClose(session);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
     }
 
     @OnMessage
-    public void onMessage(String message) throws JsonProcessingException {
-        Envelop envelop = objectMapper.readValue(message, Envelop.class);
-        chatroomService.receiveChatMessageFromUser(new ChatMessage());
+    public void onMessage(Envelop envelop) throws IOException {
+        // Envelop envelop = objectMapper.readValue(message, Envelop.class);
 
+        switch (envelop.getType()) {
+            case MESSAGE:
+                chatroomService.receiveChatMessageFromUser(objectMapper.convertValue(envelop.getBody(), ChatMessage.class));
+                break;
+            case REGISTER:
+                chatroomService.userRegister(session, objectMapper.convertValue(envelop.getBody(), User.class));
+                break;
+            case HEARTBEAT:
+                break;
+            default:
+                throw new IllegalArgumentException("Message type not support");
+        }
     }
 
     @OnError

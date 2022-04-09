@@ -1,5 +1,6 @@
 package com.chatroom.chat.redis;
 
+import com.chatroom.chat.enums.RedisTopic;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 
@@ -7,29 +8,31 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-public abstract class AbstractRedisSubscriber implements MessageListener {
+public class RedisSubscriber implements MessageListener {
 
-    private final List<BiConsumer<Message, String>> listeners;
+    private List<BiConsumer<Message, RedisTopic>> listeners;
+    private RedisTopic redisTopic;
 
-    public AbstractRedisSubscriber() {
+    public RedisSubscriber(RedisTopic redisTopic) {
         listeners = new ArrayList<>();
+        this.redisTopic = redisTopic;
     }
 
-    public void addListener(BiConsumer<Message, String> listener) {
+    public void addListener(BiConsumer<Message, RedisTopic> listener) {
         if (listener == null) {
             throw new IllegalArgumentException();
         }
         listeners.add(listener);
     }
 
-    public void removeListener(BiConsumer<Message, String> listener) {
+    public void removeListener(BiConsumer<Message, RedisTopic> listener) {
         listeners.remove(listener);
     }
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
-        for (BiConsumer<Message, String> listener : listeners) {
-            listener.accept(message, String.valueOf(pattern));
+        for (BiConsumer<Message, RedisTopic> listener : listeners) {
+            listener.accept(message, redisTopic);
         }
     }
 }

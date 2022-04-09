@@ -1,9 +1,7 @@
 package com.chatroom.chat.config;
 
 import com.chatroom.chat.enums.RedisTopic;
-import com.chatroom.chat.redis.AbstractRedisSubscriber;
-import com.chatroom.chat.redis.ChatMessageReceiver;
-import com.chatroom.chat.redis.UserMessageReceiver;
+import com.chatroom.chat.redis.RedisSubscriber;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,25 +42,29 @@ public class RedisConfig {
         return template;
     }
 
-    @Autowired
-    private ChatMessageReceiver chatMessageReceiver;
-
-    @Autowired
-    private UserMessageReceiver userMessageReceiver;
-
-    private MessageListenerAdapter messageListenerAdapter(AbstractRedisSubscriber messageReceiver, Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer) {
+    private MessageListenerAdapter messageListenerAdapter(RedisSubscriber messageReceiver, Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer) {
         MessageListenerAdapter adapter = new MessageListenerAdapter(messageReceiver, "onMessage");
         adapter.setSerializer(jackson2JsonRedisSerializer);
         adapter.afterPropertiesSet();
         return adapter;
     }
 
+    @Bean(name="messageTopicSubscriber")
+    public RedisSubscriber messageTopicSubscriber() {
+        return new RedisSubscriber(RedisTopic.MESSAGE);
+    }
+
+    @Bean(name="userTopicSubscriber")
+    public RedisSubscriber userTopicSubscriber() {
+        return new RedisSubscriber(RedisTopic.USER);
+    }
+
     @Bean
     public RedisMessageListenerContainer redisContainer(JedisConnectionFactory connectionFactory, Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
-        container.addMessageListener(messageListenerAdapter(chatMessageReceiver, jackson2JsonRedisSerializer), new ChannelTopic(RedisTopic.MESSAGE.getCode()));
-        container.addMessageListener(messageListenerAdapter(userMessageReceiver, jackson2JsonRedisSerializer), new ChannelTopic(RedisTopic.USER.getCode()));
+        container.addMessageListener(messageListenerAdapter(messageTopicSubscriber(), jackson2JsonRedisSerializer), new ChannelTopic(RedisTopic.MESSAGE.getCode()));
+        container.addMessageListener(messageListenerAdapter(userTopicSubscriber(), jackson2JsonRedisSerializer), new ChannelTopic(RedisTopic.USER.getCode()));
         container.setTaskExecutor(Executors.newFixedThreadPool(4));
 
         // to initialize redisTemplate object

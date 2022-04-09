@@ -9,6 +9,11 @@ import Chatroom from './chatroom';
 import { Routes, Route } from "react-router-dom";
 
 
+window.onbeforeunload = function(e) {
+  e.preventDefault();
+  console.log('test');
+};
+
 function App() {
   return (
     <GlobalContainer>

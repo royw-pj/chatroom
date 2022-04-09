@@ -1,22 +1,19 @@
 import React from 'react';
-import { Container, Box, Grid, Divider, Typography, Button, Paper, FormControl } from '@mui/material';
-import Stack from '@mui/material/Stack';
+import {  Box, Grid, Divider, Typography, Button, Paper, FormControl } from '@mui/material';
 import styled from '@emotion/styled'
 import TextField from '@mui/material/TextField';
-import SendIconButton from './send-icon';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { observer } from "mobx-react-lite"
+import chatroomStore from '../common/store';
+import websocketClient from '../common/websocket-client';
+import SendIcon from '@mui/icons-material/Send';
 
-
-const ChatContainer = styled(Paper)`
-    height: 100%;
-    padding: 0.5rem;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-`;
 
 const MessageRow = styled.div`
-    padding: 0.2rem;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
     display: flex;
     flex-direction: ${props => props.right === true ? 'row-reverse' : 'row'};
 `;
@@ -24,7 +21,7 @@ const MessageBox = styled(Paper)`
     max-width: 70%;
     padding: 0.4rem;
     display: inline;
-    background-color: ${props => props.right === true ? '#e4edd9' : '#f5f4f2'};
+    background-color: ${props => props.right ? '#e4edd9' : '#f5f4f2'};
     overflow-wrap: anywhere;
 `;
 
@@ -39,50 +36,73 @@ const MessageLeft = (props) => {
 };
 const MessageRight = (props) => {
     return (
-        <MessageRow right>
-            <MessageBox right>
+        <MessageRow right={true}>
+            <MessageBox right={true}>
                 {props.children}
             </MessageBox>
         </MessageRow>
     );
 };
 
-const ContactInfoBar = ({ username, onClose }) => {
-
+const ContactInfoBar = observer(() => {
     return (
         <Paper elevation={1} sx={{ padding: '0.5rem', height: '2rem' }}>
-            <Typography variant='h5'>{username}</Typography>
+            <Typography variant='h5'>{chatroomStore.selectedContact}</Typography>
         </Paper>
     );
-}
+});
 
-
-
-const ChatWindow = (props) => {
+const ChatWindow = observer((props) => {
     const isDesktop = useMediaQuery('(min-width:900px)');
     const height = isDesktop ? '30rem' : '80vh';
-    return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '0.3rem' }}>
-            <ContactInfoBar username='testing' />
-            <Divider />
-            <Box sx={{ minHeight: height, maxHeight: height, overflow: 'auto' }}>
-                <MessageLeft>Item 1</MessageLeft>
-                <MessageLeft>Item111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111</MessageLeft>
-                <MessageLeft>Item 12em 12em 12em 12em 12  em 12em 12em 12em 12em 12222222 2 22</MessageLeft>
 
+    const messages = chatroomStore.chats[chatroomStore.selectedContact];
+    const username = chatroomStore.userInfo.username;
+    const onSubmit = (e) => {
+        e.preventDefault();
+        if (!e.target.message.value) {
+            return;
+        }
+        const message = {
+            sender: username,
+            receiver: chatroomStore.selectedContact,
+            body: e.target.message.value
+        };
+        websocketClient.sendMessage(message);
+        chatroomStore.sendMessage(message);
+        
+        e.target.message.value = '';
+    };
+
+    return (
+        <Paper sx={{ height: '100%', overflow:'hidden' }}>
+            <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '0.3rem' }}>
+                <ContactInfoBar />
+                <Divider />
+                <Box sx={{ minHeight: height, maxHeight: height, overflow: 'auto' }}>
+                    {Boolean(chatroomStore.selectedContact) && Array.isArray(messages) && messages.map((message, idx) => {
+                        if (message.sender !== username) {
+                            return <MessageLeft key={idx}>{message.body}</MessageLeft>;
+                        } else {
+                            return <MessageRight key={idx}>{message.body}</MessageRight>;
+                        }
+                    })}
+                </Box>
+                <form onSubmit={onSubmit}>
+                    <Grid container spacing={1}>
+                        <Grid item xs={11}>
+                            <FormControl fullWidth>
+                                <TextField id="standard-basic" label="Message" variant="standard" name='message' />
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={1} sx={{ display: 'flex' }}>
+                            <Button type='submit' variant="contained" color="primary" aria-label="Send" endIcon={<SendIcon />} sx={{ padding: '0.4rem', minWidth: '3rem' }} />
+                        </Grid>
+                    </Grid >
+                </form>
             </Box>
-            <Grid container>
-                <Grid item xs={11}>
-                    <FormControl fullWidth>
-                        <TextField id="standard-basic" label="Message" variant="standard" />
-                    </FormControl>
-                </Grid>
-                <Grid item xs={1}>
-                    <SendIconButton />
-                </Grid>
-            </Grid >
-        </Box>
+        </Paper>
     );
-};
+});
 
 export default ChatWindow;

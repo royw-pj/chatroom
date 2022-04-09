@@ -12,14 +12,18 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import { Link } from "react-router-dom";
-import Logo, { SmallLogo } from '../logo';
+import { SmallLogo } from '../logo';
 import styled from '@emotion/styled'
+import { useNavigate } from 'react-router-dom';
+import chatroomStore from '../../common/store';
+import { observer } from 'mobx-react-lite';
+import websocketClient from '../../common/websocket-client';
 
 const StyledLink = styled(Link)`
-    text-decoration: none;
-    &:focus, &:hover, &:visited, &:link, &:active {
-        text-decoration: none;
-    }
+      text-decoration: none;
+      &:focus, &:hover, &:visited, &:link, &:active {
+              text-decoration: none;
+      }
 `;
 
 const menuList = [
@@ -27,10 +31,17 @@ const menuList = [
   { name: 'About', link: '/about' }
 ];
 
-const Appbar = () => {
+const Appbar = observer(() => {
 
   const [openNavMenu, setOpenNavMenu] = React.useState(null);
   const [openUserMenu, setOpenUserMenu] = React.useState(null);
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!chatroomStore.isLoggedOn) {
+      onLogoutClick.apply();
+    }
+  }, []);
 
   const navMenuHandler = {
     open: (event) => setOpenNavMenu(event.currentTarget),
@@ -41,6 +52,13 @@ const Appbar = () => {
     open: (event) => setOpenUserMenu(event.currentTarget),
     close: () => setOpenUserMenu(null),
   }
+
+  const onLogoutClick = () => {
+    userMenuHandler.close.apply();
+    chatroomStore.reset();
+    websocketClient.logout();
+    navigate('/');
+  };
 
   return (
     <AppBar color='transparent' sx={{ minHeight: '4rem', maxHeight: '4rem' }} position='sticky'>
@@ -86,7 +104,6 @@ const Appbar = () => {
             <SmallLogo />
           </Box>
 
-
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
             {menuList.map((menu, idx) => (
               <StyledLink key={idx} to={menu.link}>
@@ -95,13 +112,13 @@ const Appbar = () => {
               </StyledLink>
             ))}
           </Box>
-
-          <Box sx={{ flexGrow: 0 }}>
+          {chatroomStore.isLoggedOn && <Box sx={{ flexGrow: 0, display: 'flex' }}>
             <Tooltip title="Open settings">
               <IconButton onClick={userMenuHandler.open} sx={{ p: 0 }}>
                 <Avatar>A</Avatar>
               </IconButton>
             </Tooltip>
+
             <Menu sx={{ mt: '45px' }}
               anchorEl={openUserMenu}
               anchorOrigin={{
@@ -116,14 +133,14 @@ const Appbar = () => {
               open={Boolean(openUserMenu)}
               onClose={userMenuHandler.close}
             >
-              <MenuItem key='logout' onClick={userMenuHandler.close}>
+              <MenuItem key='logout' onClick={onLogoutClick}>
                 <Typography textAlign="center">Logout</Typography>
               </MenuItem>
             </Menu>
-          </Box>
+          </Box>}
         </Toolbar>
       </Container>
     </AppBar>
   );
-};
+});
 export default Appbar;
